@@ -64,7 +64,7 @@ function parseWeightMessage(msg)
         console.log("Command not Executable (Balance maybe executing another command)");
     }
     else{
-        console.log("Current Stable Net Weight Value is " + weightMsg["curr_weight"] + " " + weight_abbr[weightMsg["weight_unit"]] +" ("+weightMsg["weight_unit"]+") measured at " + new Date(weightMsg["time"]))
+        console.log("Current Stable Net Weight Value is " + weightMsg["curr_weight"] + " " + weight_abbr[weightMsg["weight_unit"]] +" ("+weightMsg["weight_unit"]+") measured at " + new Date(weightMsg["time"]*1000))
         if(weightMsg["curr_weight"]<250)
         {
             console.log("Balance in underload Range");
@@ -81,11 +81,11 @@ function displayHelpMessage()
     console.log(`Supported command:
     Command \t \t Description\t
     -------- \t \t -------------
-    device online \t To Check with Device
-    help/? \t \t Help Window
-    quit/exit/q \t Exit or quit the Driver
+    device online \t To Check whether the Device is online(connected)
+    help/? \t \t Show Help Window  
+    quit/exit/q \t Exit or Quit the Driver
     connect simulator \t Connect or reconnect to Simulator
-    s/S \t \t Request to send current stable weight
+    s/S \t \t Request to send current stable weight from Simulator
         `);
     rl.prompt()
 }
