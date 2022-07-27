@@ -127,6 +127,8 @@ function userinterface() {
                 {
                     console.log('Sending Request to get the Current Weight...');
                     sock.send(['/balancereq', '']);
+                    sendDeviceRequest = true;
+                    requestTimeout()
                 }
                 break;
             case 'quit':
@@ -170,11 +172,12 @@ const listener = async () => {
               case "/deviceresp":
                 {
                     sendDeviceRequest = false;
-                    console.log("Device Online Response Received... " + message.toString()); 
+                    console.log("Simulator is Online, Response Received... " + message.toString()); 
                 }
                 break;
               case "/balanceresp":
                 {
+                    sendDeviceRequest = false;
                     console.log("Current Weight Response Received... "); 
                     parseWeightMessage(message.toString());
                 }
