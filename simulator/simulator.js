@@ -1,3 +1,17 @@
+/**
+ ******************************************************************************
+ * @file    simulator.js
+ * @author  Sathyendran/Author
+ * @version 0.1
+ * @date    27-07-2022
+ * @brief   This file contains following:
+ *    Simulator Interface Class for 
+ *    1)  Response for Weight random generation
+ *    2)  Acknowledge Request
+ ******************************************************************************
+ */
+/******************************************************************************/
+
 var zmq = require("../node_modules/zeromq");
 var sock = zmq.socket('pub');
 var sub_sock = zmq.socket('sub');
