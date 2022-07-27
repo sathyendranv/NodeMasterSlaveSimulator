@@ -19,54 +19,139 @@ var sock = zmq.socket('pub');
 var sub_sock = zmq.socket('sub');
 var hasRecieverStarted = false;
 var hasListenerStarted = false;
+var sendDeviceRequest = false;
 let rl = readline.createInterface(process.stdin, process.stdout)
+
+const weight_abbr = { 
+    "t": "Tonne", 
+    "kg": "Kilogram", 
+    "hg": "Hectogram" ,
+    "dag": "Decagram" ,
+    "g": "Gram" ,
+    "dg": "Decigram" ,
+    "cg": "Centigram" ,
+    "mg": "Milligram", 
+    "na": "Not Applicable" 
+}; 
+
+
+function requestTimeout()
+{
+    setTimeout(function(){
+        if(sendDeviceRequest)
+        {
+            hasListenerStarted = false;
+            console.log('Simulator is not online. Please start the simulator.');
+            rl.prompt()
+        }
+   }, 3000);//wait 2 seconds
+}
+
+function checkConnectivity()
+{
+    console.log('Checking the Simulator is online...');
+    sock.send(['/devicereq', 'isOnline']);
+    sendDeviceRequest = true;
+    requestTimeout();
+}
+
+function parseWeightMessage(msg)
+{
+    var weightMsg = JSON.parse(msg);
+    
+    if(!weightMsg["isexec"])
+    {
+        console.log("Command not Executable (Balance maybe executing another command)");
+    }
+    else{
+        console.log("Current Stable Net Weight Value is " + weightMsg["curr_weight"] + " " + weight_abbr[weightMsg["weight_unit"]] +" ("+weightMsg["weight_unit"]+") measured at " + new Date(weightMsg["time"]))
+        if(weightMsg["curr_weight"]<250)
+        {
+            console.log("Balance in underload Range");
+        }
+        else if (weightMsg["curr_weight"]>700)
+        {
+            console.log("Balance in overload Range");
+        }
+    }
+}
+
+function displayHelpMessage()
+{
+    console.log(`Supported command:
+    Command \t \t Description\t
+    -------- \t \t -------------
+    device online \t To Check with Device
+    help/? \t \t Help Window
+    quit/exit/q \t Exit or quit the Driver
+    connect simulator \t Connect or reconnect to Simulator
+    s/S \t \t Request to send current stable weight
+        `);
+    rl.prompt()
+}
+
 function userinterface() {
   return new Promise(function(resolve, reject) {
     rl.setPrompt('Cmd?> ')
-    rl.prompt();
+    //rl.prompt();
     rl.on('line', function(line) {
       switch(line)
         {
+            case "":
+                {
+                    rl.prompt();
+                }
+                break;
             case "device online":
             {
-                console.log('Querying the Device?');
-                sock.send(['/devicereq', 'isOnline']);
+                checkConnectivity();
             }
             break;
-            case "":break;
-            case 'hello':
+            case "connect simulator":
                 {
-                    
+                    if(!hasListenerStarted)
+                    {
+                        console.log('Creating a new connectivity with Simulator...');
+                        listener();
+                        setTimeout(checkConnectivity,2000);
+                    }
+                    else{
+                        console.log('Already Connected to Simulator...');
+                        rl.prompt();
+                    }
+                }
+                break;
+            
+            case 's':
+            case 'S':
+                {
+                    console.log('Sending Request to get the Current Weight...');
+                    sock.send(['/balancereq', '']);
                 }
                 break;
             case 'quit':
             case 'exit':
             case 'q':
                 {
-                    console.log('Good Bye!!!')
                     rl.close()
                     return 
                 }
                 break;
             case 'help':
             case '?':
+                {
+                    displayHelpMessage();
+                }
+                break;
             default:
             {
-                if(line != 'help' || line != '?')
-                {
-                    console.log(`Unknown Command ===>  "` + line + `"`);
-                }
-                console.log(`Below are Supported command 
-                Command \t \t Descr\t
-                device online \t \t To Check with Device
-                quit or exit or q \t Exit or quit the Driver
-                    `);
+                console.log(`Unknown Command ===>  "` + line + `"`);
+                displayHelpMessage();
             }
             break;
         }
-      rl.prompt()
-
     }).on('close',function(){
+        console.log('Good Bye!!!')
         exit(0);
     });
   })
@@ -75,8 +160,8 @@ function userinterface() {
 const listener = async () => {
     try {
         sub_sock.connect('tcp://127.0.0.1:48431');
-        sub_sock.subscribe('kitty cats');
         sub_sock.subscribe('/deviceresp');
+        sub_sock.subscribe('/balanceresp');
         console.log('listener connected to port 48430');
         hasRecieverStarted = true;        
         sub_sock.on('message', function(topic, message) {
@@ -84,18 +169,24 @@ const listener = async () => {
             {
               case "/deviceresp":
                 {
-                    console.log("Response Received... " + message.toString()); 
+                    sendDeviceRequest = false;
+                    console.log("Device Online Response Received... " + message.toString()); 
+                }
+                break;
+              case "/balanceresp":
+                {
+                    console.log("Current Weight Response Received... "); 
+                    parseWeightMessage(message.toString());
                 }
                 break;
               default:
                 {
-                    console.log(`Unknown Request ===>  "` + topic.toString() + `" message:` + message.toString());
+                    console.log(`Unknown Response Received ===>  "` + topic.toString() + `" message:` + message.toString());
                 }
                 break;       
             }
             rl.prompt();
           });
-          
       } catch (err) {
         console.error(err);
         process.exit(1);
@@ -109,6 +200,7 @@ async function __main__() {
     console.log('Started Drive at localhost, port 48430');  
     console.log('Checking Simulator is online...');
     listener();
+    setTimeout(checkConnectivity,2000);
     userinterface()
   } catch(e) {
     console.log('failed:', e)
